@@ -1,0 +1,4 @@
+interface:
+  display_name: "Reproduce & Verify"
+  short_description: "Reproduce bugs and verify real fixed behavior"
+  default_prompt: "Use $reproduce-verify-fix to reproduce the issue on a pre-fix baseline, apply the current branch fix, verify representative data through database/API checks and actual browser flows, capture evidence, and report findings without changing product code."

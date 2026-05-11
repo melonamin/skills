@@ -1,0 +1,6 @@
+# Omarchy bundles this skill externally. init.sh links it locally when present.
+/omarchy
+
+# Local/editor noise
+.DS_Store
+*.swp
