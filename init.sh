@@ -67,10 +67,13 @@ if [[ -d "$OMARCHY_SKILL" ]]; then
   ensure_link "$CANONICAL_DIR/omarchy" "$OMARCHY_SKILL"
 fi
 
-mapfile -t SKILLS < <(
-  find "$CANONICAL_DIR" -mindepth 2 -maxdepth 2 -name SKILL.md -type f -printf '%h\n' \
-    | xargs -r -n1 basename \
-    | sort -u
+SKILLS=()
+while IFS= read -r skill_dir; do
+  SKILLS+=("$(basename "$skill_dir")")
+done < <(
+  find "$CANONICAL_DIR" -mindepth 2 -maxdepth 2 -name SKILL.md -type f \
+    -exec dirname {} \; \
+    | LC_ALL=C sort -u
 )
 
 if [[ -L "$CANONICAL_DIR/omarchy" || -f "$CANONICAL_DIR/omarchy/SKILL.md" ]]; then
