@@ -1,0 +1,4 @@
+interface:
+  display_name: "Omarchy Marketplace Verify"
+  short_description: "Review an Omarchy Marketplace Verify ticket"
+  default_prompt: "Use $omarchy-marketplace-verify to review this Omarchy Marketplace Verify ticket remotely and read-only."
