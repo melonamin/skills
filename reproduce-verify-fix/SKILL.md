@@ -1,6 +1,6 @@
 ---
 name: reproduce-verify-fix
-description: Use after a fix or PR branch is already implemented when the user asks Codex to independently reproduce the original issue on a pre-fix baseline, apply the current branch's fix, reload/reset local data if needed, verify the actual corrected behavior through both data-level checks and realistic browser/UI flows when user-visible behavior is involved, investigate any remaining failures, and report evidence back without changing product code. Triggers include "reproduce then test the fix", "verify this branch locally", "prove the issue is gone", "use local dev env", "test API and browser", "make screenshots", "human test this", or "generate a report".
+description: Independently verify an already-implemented fix by reproducing the issue on a baseline and exercising the fixed data/API and user-visible paths. Use for explicit regression-verification requests such as "reproduce then test the fix" or "prove this branch fixes the issue". Do not use for generic reports, screenshots, browser testing, or implementing a fix.
 ---
 
 # Reproduce Verify Fix
