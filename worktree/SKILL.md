@@ -1,73 +1,33 @@
 ---
 name: worktree
-description: Manage git worktrees with the gt utility for parallel feature development — create, switch, merge, and clean up worktrees without stashing or branch-switching.
-user-invocable: true
-allowed-tools:
-  - Bash
-  - Read
-  - Glob
+description: Create, locate, switch to, merge, or remove git worktrees when the user requests those operations or task isolation requires one. Use the existing checkout when appropriate; finishing implementation alone does not authorize merge or cleanup.
 ---
 
-# Git Worktree Management with gt
+# Worktree operations
 
-`gt` (v0.5.0+) manages worktrees stored in `.worktrees/` inside the repo by
-default. The location is configurable (`~/.config/gt/config.json`,
-`worktree_dir`), so always resolve paths via `git worktree list` rather than
-assuming.
+Inspect git status --short --branch, git branch -vv, and git worktree list --porcelain before choosing a target. Resolve the repository's actual base branch and upstream; do not assume main or matching local/remote names.
 
-## Agent-safe usage — read first
+## Create or reuse
 
-- NEVER run bare `gt` — it opens an interactive TUI.
-- NEVER run `gt <name>` without `-x` — it spawns an interactive shell after
-  creating the worktree. Always pass a no-op command instead:
+- Reuse the task's existing worktree when it already exists. Preserve other active worktrees and dirty changes.
+- For a new branch with gt, use gt <branch> <resolved-base> -x true. Bare gt opens a TUI; gt <branch> without -x can open an interactive shell.
+- Locate the resulting path with git worktree list rather than assuming .worktrees. Creation hooks can install dependencies; inspect their results.
+- If gt is unavailable, use git worktree add -b <branch> <path> <resolved-base>.
 
-```bash
-gt <name> main -x true        # create worktree non-interactively
-git worktree list             # find its path, then cd into it
-```
+## Switch
 
-## Commands
+Locate the existing worktree and use its directory. Do not change the branch in another active worktree. Inside BB, when moving this thread, use the environment-directory update tool and stop the turn after it succeeds so the next turn has the correct working directory.
 
-| Command | Effect |
-|---|---|
-| `gt <name> <base> -x true` | Create NEW branch `<name>` from `<base>` + worktree |
-| `gt <name> -x true` | Reuse local branch `<name>`; else track remote `<name>` (fetches if needed); else create from current HEAD |
-| `gt --merge <branch>` | ff-only merge into default branch, then delete worktree AND branch |
-| `gt --merge <branch> --squash` | Squash-merge variant (single commit) |
+## Finish implementation
 
-Caveats:
+Complete the authorized changes and validation. Commit, push, or open a PR only according to existing authorization. The phrase "finish this feature" does not itself authorize merging, deleting a branch, or removing a worktree.
 
-- `gt <name>` reuses existing branches (git switch-style guessing). To
-  guarantee a fresh branch, always pass the base: `gt <name> main`.
-- `gt --merge` runs pre-flight checks (dirty tree, ahead/behind, ff-possible)
-  and works from anywhere in the repo — but it checks out the default branch
-  in the main worktree as a side effect.
-- A `post_create` hook from config (e.g. `npm install`) runs automatically on
-  creation; expect its output.
+## Merge
 
-## Workflows
+When merge is authorized, verify source, destination, dirty state, and checks. Use the repository's merge/PR workflow. gt --merge <branch> also checks out the default branch in the main worktree and deletes the source worktree AND branch; use it only if that entire action set is intended and the destination worktree is available. Otherwise merge separately and retain the worktree.
 
-**Start a feature:** `gt <feature-name> main -x true`, then cd to the new
-worktree (path from `git worktree list`). Work there; the original worktree
-stays untouched.
+## Cleanup
 
-**Finish a feature:** commit everything (`git status` clean), then
-`gt --merge <feature-branch>`. Use `--squash` for a single-commit history.
-This replaces manual merge + `git worktree remove` + `git branch -d`.
+Remove only the requested disposable worktree after checking its status and contents. Use git worktree remove <path> without --force. Dirty or untracked content requires preservation or explicit discard authorization, not an automatic force retry. Delete a branch only when requested or already authorized; prefer git branch -d, and inspect unmerged commits before any forced deletion.
 
-**Clean up without merging:** `git worktree remove <path>` (add `--force` if
-dirty), then `git branch -D <branch>` if the branch should go too.
-
-## When User Asks To...
-
-- "work on feature X" / "start feature X" → `gt <feature-name> main -x true`, then cd in
-- "switch to feature X" → find path via `git worktree list`, cd there
-- "finish this feature" / "merge back" → commit, then `gt --merge <branch>`
-- "clean up" / "delete worktree" → `git worktree remove <path>` (+ delete branch if asked)
-
-## Notes
-
-- Worktrees share one `.git`: commits made in any worktree are instantly
-  visible to all. One branch = one worktree; gt enforces this.
-- Run agents in parallel by giving each its own worktree:
-  `gt <task> main -x true` per task.
+Worktrees share repository refs and objects. Changes to one branch's history and shared git configuration can affect other worktrees; keep operations scoped to the task.
