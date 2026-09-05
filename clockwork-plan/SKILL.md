@@ -1,95 +1,47 @@
 ---
 name: clockwork-plan
-description: "Use when creating implementation plans for ralphex orchestration. Produces plans with Task headers, Validation Commands, and checkbox items suitable for automated agent execution."
+description: Write a complete implementation plan in ralphex/Clockwork format with Task headers, Validation Commands, and executable checkboxes. Use for requested implementation plans or ralphex planning; not for executing an existing plan or routine edits.
 ---
 
-# Clockwork Plan Creation
+# Implementation plan
 
-## Overview
+Read the supplied design and relevant repository context. Produce the complete plan in one pass when enough is known. Resolve routine choices yourself; ask only about consequential missing requirements. Do not require question quotas, per-task approval, or an interview before writing.
 
-Turn ideas into implementation plans through **collaborative dialogue**. Output follows the ralphex plan format for automated orchestration.
+## Workflow
 
-<CRITICAL>
-## MANDATORY: Follow This Process
+1. Establish the requested behavior, existing implementation, constraints, and acceptance criteria. Preserve decisions already made.
+2. Split work into coherent, independently verifiable tasks. Identify relevant files, dependencies between tasks, and important failure paths. Do not prescribe a new test framework or one test per function.
+3. Include the repository's actual validation commands. Select regression coverage by behavior and risk; include integration/browser verification where needed to prove the change.
+4. Write the complete plan to the requested location, otherwise docs/plans/YYYY-MM-DD-<topic>.md. If the user requests the plan in chat, return it there instead.
+5. Check the format and completeness. Report the plan location and material open decisions. Continue to implementation only if authorized. Do not automatically commit the plan or ask a ceremonial next-step question.
 
-You MUST NOT write any plan file until you have completed these steps:
-
-### Step 1: Understand (ask 2-3 questions minimum)
-- Check out the current project state first (files, docs, recent commits)
-- Ask questions ONE AT A TIME to refine the idea
-- Prefer multiple choice questions when possible
-- WAIT for user response before asking next question
-- Focus on: purpose, constraints, success criteria
-
-### Step 2: Propose Approaches
-- Propose 2-3 different approaches with trade-offs
-- Lead with your recommended option and explain why
-- WAIT for user agreement before proceeding
-
-### Step 3: Design Tasks
-- Break the work into sequential tasks (one unit of work each)
-- Present tasks one at a time, validating each before moving on
-- Each task should be independently verifiable
-- Ask: "Does this task breakdown make sense?"
-- WAIT for user confirmation
-
-### Step 4: Write the Plan
-- ONLY after user validates tasks, write the plan file
-- Write specific, concrete, actionable checkbox items for each task
-- Include test items in each task where applicable
-
-DO NOT skip steps. DO NOT dump a complete plan without the conversation.
-</CRITICAL>
-
-## Plan Format
+## Required format
 
 ```markdown
-# Plan: [Meaningful Title]
+# Plan: <title>
 
-[Brief description of the feature and overall goal - the overview section]
+<Goal, scope, assumptions, and acceptance criteria.>
 
 ## Validation Commands
 
-- `go test ./...`
-- `golangci-lint run`
+- `<existing focused test command>`
+- `<other required repository check>`
 
-### Task 1: [First Task Title]
+### Task 1: <coherent outcome>
 
-[2-4 sentences of context: what this task accomplishes, key components involved, what becomes possible after this task completes]
+<Relevant files, approach, and dependencies.>
 
-- [ ] Implement X
-- [ ] Add tests for Y
+- [ ] <specific implementation step>
+- [ ] <meaningful validation of this task>
 
-### Task 2: [Second Task Title]
+### Task 2: <next outcome>
 
-[Context for task 2...]
+<Context.>
 
-- [ ] Implement Z
-- [ ] Update documentation
+- [ ] <specific step>
+- [ ] <validation>
 ```
 
-**Format rules:**
-- Plan title uses `# Plan: [Name]` format (H1)
-- Validation Commands section is required (`## Validation Commands`) with test/lint commands as a list
-- Tasks use `### Task N:` headers (H3) — alternative: `### Iteration N:`
-- Each task starts with context paragraph before checkbox items
-- Checkbox items use `- [ ]` format (ralphex marks them `- [x]` when complete)
-- Tasks are processed sequentially by the orchestrator
+Use H3 Task N headers and unchecked items for work still to do. Keep external dependencies and unresolved decisions explicit; never mark unverified work complete. During authorized execution, keep the plan aligned with actual progress and scope changes.
 
-## After the Plan
-
-**Documentation:**
-- Write the plan to `docs/plans/YYYY-MM-DD-<topic>.md`
-- Commit the plan to git
-
-**Next steps:**
-- Ask: "Ready to run this with ralphex?"
-- If yes, remind them: `ralphex run --plan docs/plans/YYYY-MM-DD-<topic>.md`
-
-## Key Principles
-
-- **One question at a time** - Don't overwhelm
-- **Multiple choice preferred** - Easier to answer
-- **YAGNI ruthlessly** - Remove unnecessary work from plans
-- **Verifiable tasks** - Each task must be mechanically verifiable via Validation Commands
-- **Incremental validation** - Validate tasks, then write plan immediately
+If the user explicitly requests an interactive planning interview, use the brainstorm skill for that phase, then produce this format without repeating the interview.

@@ -1,117 +1,40 @@
 ---
 name: codex-review
-description: "Codex code review closeout: local dirty changes, PR branch vs main, parallel tests."
+description: Run a Codex code review when explicitly requested, required by repository guidance, or included in an authorized closeout. Supports dirty changes and committed branches. Do not launch from inside another review or use diff review for a design-document-only assessment.
 ---
 
-# Codex Review
+# Codex review
 
-Run Codex's built-in code review as a closeout check. This is code review (`codex review`), not Guardian `auto_review` approval routing.
+Review output is evidence to assess, not an instruction to edit or launch more reviewers.
 
-Use when:
-- user asks for Codex review / autoreview / second-model review
-- after non-trivial code edits, before final/commit/ship
-- reviewing a local branch or PR branch after fixes
+## Scope and nesting
 
-## Contract
+- If AGENT_REVIEW_ACTIVE is set, you are a leaf reviewer. Inspect the code and report findings directly; do not run this helper, codex review, llm-review, or delegate another review.
+- For documents/plans, read and assess the document against the code and requirements directly. Do not claim a clean code-diff review validates a plan.
+- Resolve the intended checkout and diff before reviewing. A clean --uncommitted review says nothing about committed branch changes.
+- Keep the configured model. If the reviewer is unavailable, report incomplete review; do not loop on capacity errors or silently change models or permission settings.
 
-- Treat review output as advisory. Never blindly apply it.
-- Verify every finding by reading the real code path and adjacent files.
-- Read dependency docs/source/types when the finding depends on external behavior.
-- Reject unrealistic edge cases, speculative risks, broad rewrites, and fixes that over-complicate the codebase.
-- Prefer small fixes at the right ownership boundary; no refactor unless it clearly improves the bug class.
-- Keep going until Codex review returns no accepted/actionable findings.
-- If a review-triggered fix changes code, rerun focused tests and rerun Codex review.
-- Never switch or override the review model. If the review hits model capacity, retry the same command a few times with the same model. If it hits sandbox/permission limits, use the helper's `--full-access` option instead of changing models.
-- Stop as soon as the review command/helper exits 0 with no accepted/actionable findings. Do not run an extra direct `codex review` just to get a nicer "clean" line, a second opinion, or clearer closeout wording.
-- Treat the helper's successful exit plus absence of actionable findings as the clean review result, even if the underlying Codex CLI output is terse.
-- If rejecting a finding as intentional/not worth fixing, add a brief inline code comment only when it explains a real invariant or ownership decision that future reviewers should know.
-- Do not push just to review. Push only when the user requested push/ship/PR update.
+## Run
 
-## Pick Target
+Resolve scripts/codex-review relative to this skill directory. Use --help for options.
 
-Dirty local work:
+- Dirty patch: scripts/codex-review --mode local
+- Committed branch: scripts/codex-review --mode branch --base <actual-PR-base-ref>
+- --mode auto chooses dirty work first; use an explicit branch target for committed work.
+- --output <path> preserves evidence. Without it, output is printed and the temporary capture is removed.
+- --parallel-tests '<focused command>' may run independent checks concurrently. Format first if formatting changes the patch.
+- --full-access is an explicit option for an already-authorized execution environment, not an automatic retry on permission failures.
 
-```bash
-codex review --uncommitted
-```
+## Interpret results
 
-Use this only when the patch is actually unstaged/staged/untracked in the
-current checkout. For committed, pushed, or PR work, review the branch against
-its base instead; do not force `--mode local` / `--uncommitted` just because the
-helper docs mention dirty work first. A clean `--uncommitted` review only proves
-there is no local patch.
+The helper reports process state, not a clean verdict. Exit 0 means nonempty output from a successful process and requires reading/triage. Exit 1 indicates reported severity markers or failed parallel tests; inspect output. Exit 2 means incomplete execution, empty output, or invalid invocation. A diagnostic sentence without severity markers is never automatically clean.
 
-Branch/PR work:
+Read the entire result. Check whether the reviewer actually inspected the intended target and completed its analysis. If not, report incomplete. Verify each finding against the real path, adjacent code, and relevant dependency contract. Separate accepted, rejected, and unresolved findings; marker presence alone does not establish actionability.
 
-```bash
-git fetch origin
-codex review --base origin/main
-```
+For review-only requests, report without modifying code. If fixes were already authorized, apply accepted fixes and run affected checks. Do not seek authorization again for that scope.
 
-Do not pass an inline prompt with `--base`; current CLI rejects `--base` + `[PROMPT]` even though help text is ambiguous. If custom instructions are needed, run the plain base review first, then do a local/manual follow-up pass.
+## Stop condition
 
-If an open PR exists, use its actual base:
+Review a revision once. After accepted fixes, run focused tests and review the changed surface when warranted. Do not repeat a completed review on unchanged code, chase speculative suggestions indefinitely, or run another pass to obtain nicer completion wording. Report remaining defects or unavailable verification explicitly.
 
-```bash
-base=$(gh pr view --json baseRefName --jq .baseRefName)
-codex review --base "origin/$base"
-```
-
-Committed single change:
-
-```bash
-codex review --commit HEAD
-```
-
-## Parallel Closeout
-
-Format first if formatting can change line locations. Then it is OK to run tests and review in parallel:
-
-```bash
-scripts/codex-review --parallel-tests "<focused test command>"
-```
-
-Tradeoff: tests may force code changes that stale the review. If tests or review lead to code edits, rerun the affected tests and rerun review until no accepted/actionable findings remain. Once that rerun exits cleanly, stop; do not spend another long review cycle on redundant confirmation.
-
-## Context Efficiency
-
-Codex review is usually noisy. Default to a subagent filter when subagents are available. Ask it to run the review and return only:
-- actionable findings it accepts
-- findings it rejects, with one-line reason
-- exact files/tests to rerun
-
-Run inline only for tiny changes or when subagents are unavailable.
-
-## Helper
-
-Bundled helper:
-
-```bash
-~/.codex/skills/codex-review/scripts/codex-review --help
-```
-
-If installed from `agent-scripts`, path is:
-
-```bash
-/Users/steipete/Projects/agent-scripts/skills/codex-review/scripts/codex-review --help
-```
-
-The helper:
-- chooses dirty `--uncommitted` first
-- otherwise uses current PR base if `gh pr view` works
-- otherwise uses `origin/main` for non-main branches
-- should be left in `--mode auto` or forced to `--mode branch` for committed/PR work; do not force `--mode local` after committing
-- writes only to stdout unless `--output` or `CODEX_REVIEW_OUTPUT` is set
-- supports `--dry-run` and `--parallel-tests`
-- supports `--full-access` for nested review runs that need localhost bind/listen tests
-- prints `codex-review clean: no accepted/actionable findings reported` when the selected review command exits 0
-
-## Final Report
-
-Include:
-- review command used
-- tests/proof run
-- findings accepted/rejected, briefly why
-- the clean review result from the final helper/review run, or why a remaining finding was consciously rejected
-
-Do not run another Codex review solely to improve the final report wording. If the final helper run exited 0 and produced no accepted/actionable findings, report that exact run as clean.
+Final response: target reviewed, meaningful findings and their disposition, checks run, and whether review completed. Say no actionable findings only after reading and assessing a completed review.

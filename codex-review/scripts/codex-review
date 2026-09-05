@@ -15,6 +15,11 @@ Options:
   --dry-run                  Print selected commands, do not run.
   -h, --help                 Show help.
 
+Exit status:
+  0  Process succeeded with nonempty output; human/agent triage required.
+  1  Severity markers reported or parallel tests failed; inspect output.
+  2  Incomplete execution, empty output, or invalid invocation.
+
 Modes:
   local   codex review --uncommitted
   branch  codex review --base <base>
@@ -31,6 +36,14 @@ parallel_tests=
 dry_run=false
 
 while [[ $# -gt 0 ]]; do
+  case "$1" in
+    --mode|--base|--codex-bin|--output|--parallel-tests)
+      if [[ $# -lt 2 || -z "$2" ]]; then
+        echo "missing value for $1" >&2
+        exit 2
+      fi
+      ;;
+  esac
   case "$1" in
     --mode)
       mode=${2:-}
@@ -78,6 +91,11 @@ case "$mode" in
     exit 2
     ;;
 esac
+
+if [[ -n "${AGENT_REVIEW_ACTIVE:-}" ]]; then
+  echo "review incomplete: nested review helper invocation refused; inspect code directly" >&2
+  exit 2
+fi
 
 git rev-parse --show-toplevel >/dev/null
 
@@ -162,7 +180,7 @@ trap cleanup EXIT
 
 run_review() {
   mkdir -p "$(dirname "$review_output")"
-  "${review_cmd[@]}" 2>&1 | tee "$review_output"
+  AGENT_REVIEW_ACTIVE=1 "${review_cmd[@]}" 2>&1 | tee "$review_output"
 }
 
 elapsed_since() {
@@ -189,21 +207,20 @@ review_output_has_findings() {
   grep -Eq '\[P[0-3]\]' "$review_output"
 }
 
-report_clean_review_or_fail() {
+report_review_process() {
   local elapsed_text
   elapsed_text=$(format_elapsed "${review_elapsed_seconds:-0}")
 
-  if review_output_has_findings; then
-    printf 'codex-review complete after %s\n' "$elapsed_text"
-    printf 'codex-review findings: accepted/actionable findings reported\n'
-    return 1
-  fi
   if review_output_empty; then
-    printf 'codex-review complete after %s; no output\n' "$elapsed_text"
+    printf 'codex-review incomplete after %s: no output\n' "$elapsed_text"
+    return 2
+  fi
+  printf 'codex-review process completed after %s; result requires triage\n' "$elapsed_text"
+  if review_output_has_findings; then
+    printf 'codex-review severity markers reported; verify findings against code\n'
     return 1
   fi
-  printf 'codex-review complete after %s\n' "$elapsed_text"
-  printf 'codex-review clean: no accepted/actionable findings reported\n'
+  printf 'codex-review verdict: untriaged (absence of severity markers is not a clean review)\n'
 }
 
 if [[ -z "$parallel_tests" ]]; then
@@ -214,10 +231,11 @@ if [[ -z "$parallel_tests" ]]; then
   review_elapsed_seconds=$(elapsed_since "$review_started_at")
   set -e
   if [[ "$review_status" == 0 ]]; then
-    report_clean_review_or_fail
+    report_review_process
     exit $?
   fi
-  exit "$review_status"
+  printf 'codex-review incomplete: process exited %s\n' "$review_status" >&2
+  exit 2
 fi
 
 review_status_file=$(mktemp)
@@ -254,8 +272,13 @@ rm -f "$review_status_file" "$review_elapsed_file" "$tests_status_file"
 printf 'codex-review exit: %s\n' "$review_status"
 printf 'tests exit: %s\n' "$tests_status"
 
-if [[ "$review_status" != 0 || "$tests_status" != 0 ]]; then
+if [[ "$review_status" != 0 ]]; then
+  printf 'codex-review incomplete: process exited %s\n' "$review_status" >&2
+  exit 2
+fi
+if [[ "$tests_status" != 0 ]]; then
+  echo 'codex-review validation failed: parallel tests did not pass' >&2
   exit 1
 fi
 
-report_clean_review_or_fail
+report_review_process

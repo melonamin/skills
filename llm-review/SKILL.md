@@ -1,65 +1,19 @@
 ---
 name: llm-review
-description: Run an LLM code review (OpenAI Codex + Anthropic Claude in parallel) on uncommitted changes or against a base ref. Use when user asks to "review my changes", "review uncommitted", "review against <ref>", "code review", "LLM review", "review branch vs <ref>", "second opinion on this diff".
-allowed-tools: Bash, Read
+description: Run independent Codex and Claude reviews when the user explicitly requests both providers, an LLM review, or this skill. Supports uncommitted changes or a base ref. Do not invoke from a reviewer or for ordinary review requests that do not need two providers.
 ---
 
-# LLM Code Review
+# Two-provider code review
 
-Runs **two independent LLM reviewers in parallel** (OpenAI Codex CLI and Anthropic Claude CLI) on the current diff and presents both reviews. Cross-vendor coverage catches issues a single model misses.
+Resolve scripts/llm-review.sh relative to this skill directory. Run without arguments for the dirty patch, or pass the actual base ref for committed work. Both CLIs must be available and authenticated through their configured login or credentials; API keys are not inherently required.
 
-## Activation Triggers
+If AGENT_REVIEW_ACTIVE is set, review directly without launching this workflow or another reviewer. The script exports the guard to its children and rejects nested helper calls.
 
-- "review my changes", "review uncommitted"
-- "review against <ref>", "review vs <ref>", "review branch vs main"
-- "code review", "LLM review", "second opinion on this diff"
-- "run the reviewers"
+1. Confirm the checkout and diff scope. Read repository review guidance.
+2. Run the helper once and read both outputs. It preserves exact provider exit statuses and nonempty output even when one fails.
+3. Check completion separately for each provider. Exit 0 means both processes returned nonempty output, not that either review is clean. Exit 2 means at least one reviewer failed or returned no output. Assess diagnostic-only text as incomplete even with a zero exit status.
+4. Verify findings against the code. Prioritize by consequence and evidence; agreement between models does not determine severity.
+5. Report a merged result, disagreements, and incomplete providers. For review-only requests, do not edit. If fixes are already authorized, apply accepted fixes without asking again.
+6. After edits, rerun affected checks and only the necessary focused review. Never rerun an unchanged revision solely for confirmation.
 
-## Usage
-
-```bash
-~/.claude/skills/llm-review/scripts/llm-review.sh           # uncommitted
-~/.claude/skills/llm-review/scripts/llm-review.sh master    # current branch vs master
-~/.claude/skills/llm-review/scripts/llm-review.sh HEAD~3    # last 3 commits
-```
-
-## Workflow
-
-1. **Run the script** with the appropriate arg.
-2. **Read both reviews end-to-end** — they're printed under `Codex (OpenAI)` and `Claude (Anthropic)` headers. They will overlap on critical issues and diverge on judgment calls.
-3. **Synthesize for the user**: present a merged summary with these sections:
-   - **Critical (both flagged)** — high confidence, fix first
-   - **Critical (one flagged)** — investigate, may be a false positive but worth checking
-   - **Important** — should fix
-   - **Minor** — optional
-   - **Disagreements** — where the two reviewers conflict, with your read on which is right
-4. **Wait for user approval** before making any code changes. Never start editing based on the review output without an explicit go-ahead.
-5. **After fixes**, re-run the script to verify the issues were addressed and no regressions were introduced.
-
-## Project Customization
-
-If the repo has a `REVIEW_GUIDELINES.md` at the git root, the script appends its contents to the review prompt automatically. Use this for project-specific patterns (sqlc usage, error wrapping, test conventions, etc.).
-
-## Tuning the Review Prompt
-
-The prompt in `scripts/llm-review.sh` (between `PROMPT_EOF` markers) is sent **only to Claude**. Codex's `review` subcommand does not accept custom prompts when used with `--uncommitted` or `--base` (CLI restriction), so codex uses its built-in review prompt. This means the two reviewers may emphasize different things — that's actually useful for cross-coverage.
-
-## Failure Handling
-
-- If **one** reviewer fails (network, rate limit, missing key), the script still prints the other and exits 0.
-- If **both** fail, the script exits 1.
-- Common causes: `OPENAI_API_KEY` or `ANTHROPIC_API_KEY` not set, codex/claude not on PATH, ref doesn't exist.
-
-## Requirements
-
-- `codex` CLI on PATH (OpenAI Codex CLI)
-- `claude` CLI on PATH
-- `OPENAI_API_KEY` env var
-- `ANTHROPIC_API_KEY` env var
-- Git repo with the requested diff scope
-
-## Notes
-
-- Claude is invoked with `--bare -p` to skip hooks, plugins, and memory loading — the subprocess won't recursively trigger your parent session's hooks.
-- Codex uses its built-in `codex review --uncommitted` / `codex review --base <ref>` modes, which compute the diff themselves; we don't pipe it.
-- The script does not modify any files. It only reads the diff and prints to stdout.
+The script uses native Codex diff review and Claude print mode with a supplied diff, skills disabled, and session hooks disabled. REVIEW_GUIDELINES.md at the repository root is included in Claude's prompt. Codex reads its own repository guidance. The two review contexts are not identical; report that limitation when it affects findings.
