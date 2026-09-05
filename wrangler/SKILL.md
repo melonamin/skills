@@ -15,7 +15,7 @@ Do not install packages to answer a read-only question. If implementation requir
 
 - [Introduction](guide-introduction.md)
 - [Retrieval Sources](guide-retrieval-sources.md)
-- [FIRST: Check if Wrangler is installed, and if not, install it](guide-first-check-if-wrangler-is-installed-and-if-not-install-it.md)
+- [Locate the project CLI](guide-first-check-if-wrangler-is-installed-and-if-not-install-it.md)
 - [Key Guidelines](guide-key-guidelines.md)
 - [Quick Start: New Worker](guide-quick-start-new-worker.md)
 - [Quick Reference: Core Commands](guide-quick-reference-core-commands.md)
