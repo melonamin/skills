@@ -1,9 +1,13 @@
 ---
 name: spot
-description: Build and deploy sites and Spot Show card/block visual reports on Spot, the internal hosting platform. Use when creating or updating a Spot site, showing plans, architecture diagrams, diffs, terminal output, JSON, screenshots, or when a site needs identity, database, realtime, file uploads, text AI, AI image generation, or Slack notifications.
+description: Create or update Spot sites, hosted visual reports, and standalone HTML deliverables. Use for hosted or shareable pages and dashboards, or explicit Spot work; not for opening existing files or URLs, or writing ordinary Markdown in chat.
 ---
 
 # Spot
+
+Opening an existing local document or URL does not require creating a Spot page.
+Open the requested resource directly. Use Spot when creating a hosted/shareable
+deliverable, a standalone HTML deliverable, or when explicitly requested.
 
 The user may have a Spot page open in their browser. The installed skill is only
 a bootstrap: consult the current Spot-specific instructions from the running
